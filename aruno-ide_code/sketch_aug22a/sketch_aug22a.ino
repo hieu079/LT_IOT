@@ -3,9 +3,9 @@
 #include <DHT.h>
 
 // Replace these with your WiFi and MQTT broker settings
-const char* ssid = "Kuro";
-const char* password = "Aa123456";
-const char* mqtt_server = "192.168.106.112"; // Replace with your MQTT broker address
+const char* ssid = "Ho Huu Nghia 2.4G";
+const char* password = "0977421571";
+const char* mqtt_server = "192.168.1.4"; // Replace with your MQTT broker address
 
 // DHT11 sensor settings
 #define DHTPIN D2    // Pin connected to the DHT11 sensor
@@ -63,16 +63,13 @@ void reconnect() {
       delay(5000);
     }
   }
-    delay(10000);
-
 }
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(115200);
   setup_wifi();
   client.setServer(mqtt_server, 1884);
   client.setCallback(callback);
-  delay(10000);
 
   // Initialize the DHT sensor
   dht.begin();
@@ -95,11 +92,11 @@ void loop() {
   }
 
   // Prepare the payload
-  String payload = "{\"device_name\": \"ESP8266\", \"temperature\": 26.5, \"humidity\": 60.3}";
-  String timestamp = "2024-08-20T05:00:00Z"; 
+  String timestamp = "2024-08-20T05:00:00Z"; // Example timestamp, replace with actual time if needed
+  String payload = "{\"temperature\": " + String(temperature, 1) + ", \"humidity\": " + String(humidity, 1) + ", \"timestamp\": \"" + timestamp + "\"}";
 
   // Publish data to the topic
-  client.publish("sensor/data", payload.c_str());
+  client.publish("esp8266/sensor_data", payload.c_str());
 
   // Wait for 10 seconds before publishing again
   delay(10000);

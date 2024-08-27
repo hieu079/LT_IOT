@@ -24,7 +24,7 @@ volumes:
   mosquitto-data:
   mosquitto-log:
   mosquitto-config:
-
+  grafana_data:
 services:
   ui:
     image: ${MF_RELEASE_PREFIX}/ui:${MF_RELEASE_TAG}
@@ -236,6 +236,7 @@ services:
   jaeger:
     image: jaegertracing/all-in-one:1.20
     container_name: mainfluxlabs-jaeger
+    restart: on-failure
     ports:
       - ${MF_JAEGER_PORT}:${MF_JAEGER_PORT}/udp
       - ${MF_JAEGER_FRONTEND}:${MF_JAEGER_FRONTEND}
@@ -381,7 +382,7 @@ services:
     image: postgres:13.3-alpine
     container_name: mainfluxlabs-postgres
     ports:
-      - "5433:5433"
+      - "5433:5432"
     restart: on-failure
     environment:
       POSTGRES_USER: ${MF_POSTGRES_WRITER_DB_USER}
@@ -554,8 +555,11 @@ services:
       GF_SECURITY_ADMIN_PASSWORD: mainflux
     networks:
       - mainfluxlabs-base-net
+    volumes:
+      - grafana_data:/var/lib/grafana
   mosquitto:
-    image: eclipse-mosquitto:2.0
+    restart: on-failure
+    image: eclipse-mosq     uitto:2.0
     ports:
       - "1884:1884"   # Cổng MQT 
     volumes:
@@ -566,6 +570,7 @@ services:
       - mainfluxlabs-base-net
   mqtt_subscriber_service:
     build: ./mqtt_subscriber_service  # Sử dụng đường dẫn chính xác
+    restart: on-failure
     container_name: mqtt_subscriber_service
     depends_on:
       - mosquitto  # Đảm bảo dịch vụ MQTT broker của Mainflux đã chạy trước
