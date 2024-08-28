@@ -559,7 +559,7 @@ services:
       - grafana_data:/var/lib/grafana
   mosquitto:
     restart: on-failure
-    image: eclipse-mosq     uitto:2.0
+    image: eclipse-mosquitto:2.0
     ports:
       - "1884:1884"   # Cổng MQT 
     volumes:
