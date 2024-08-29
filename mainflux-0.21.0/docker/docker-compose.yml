@@ -1,11 +1,12 @@
 # Copyright (c) Mainflux
 # SPDX-License-Identifier: Apache-2.0
 
-version: "3.7"
 
 networks:
   mainfluxlabs-base-net:
     driver: bridge
+  docker_mainfluxlabs-base-net:
+    external: true
 
 volumes:
   mainfluxlabs-auth-db-volume:
@@ -21,6 +22,7 @@ volumes:
   mainfluxlabs-webhooks-db-volume:
   mainfluxlabs-smtp-notifier-db-volume:
   mainfluxlabs-smpp-notifier-db-volume:
+  mainfluxlabs-influxdb-volume:
   mosquitto-data:
   mosquitto-log:
   mosquitto-config:
@@ -559,7 +561,7 @@ services:
       - grafana_data:/var/lib/grafana
   mosquitto:
     restart: on-failure
-    image: eclipse-mosq     uitto:2.0
+    image: eclipse-mosquitto:2.0
     ports:
       - "1884:1884"   # Cổng MQT 
     volumes:
@@ -575,6 +577,7 @@ services:
     depends_on:
       - mosquitto  # Đảm bảo dịch vụ MQTT broker của Mainflux đã chạy trước
       - mqtt-db  # Nếu bạn đang sử dụng PostgreSQL cùng với Mainflux
+
     environment:
       - NODE_ENV=production
       - PGUSER=mainflux
@@ -582,6 +585,70 @@ services:
       - PGDATABASE=subscriptions
     networks:
       - mainfluxlabs-base-net
+
+  influxdb:
+    image: influxdb:latest
+    container_name: mainfluxlabs-influxdb
+    restart: on-failure
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: ${MF_INFLUXDB_INIT_MODE}
+      DOCKER_INFLUXDB_INIT_USERNAME: ${MF_INFLUXDB_ADMIN_USER}
+      DOCKER_INFLUXDB_INIT_PASSWORD: ${MF_INFLUXDB_ADMIN_PASSWORD}
+      DOCKER_INFLUXDB_INIT_ORG: ${MF_INFLUXDB_ORG}
+      DOCKER_INFLUXDB_INIT_BUCKET: ${MF_INFLUXDB_BUCKET}
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: ${MF_INFLUXDB_TOKEN}
+      INFLUXDB_HTTP_FLUX_ENABLED: ${MF_INFLUXDB_HTTP_ENABLED}
+    networks:
+      - docker_mainfluxlabs-base-net
+    ports:
+      - ${MF_INFLUXDB_PORT}:${MF_INFLUXDB_PORT}
+    volumes:
+      - mainfluxlabs-influxdb-volume:/var/lib/influxdb
+
+  influxdb-writer:
+    image: mainfluxlabs/influxdb-writer:${MF_RELEASE_TAG}
+    container_name: mainfluxlabs-influxdb-writer
+    depends_on:
+      - influxdb
+    restart: on-failure
+    environment:
+      MF_INFLUX_WRITER_LOG_LEVEL: debug
+      MF_BROKER_URL: ${MF_BROKER_URL}
+      MF_INFLUX_WRITER_PORT: ${MF_INFLUX_WRITER_PORT}
+      MF_INFLUX_WRITER_BATCH_SIZE: ${MF_INFLUX_WRITER_BATCH_SIZE}
+      MF_INFLUX_WRITER_BATCH_TIMEOUT: ${MF_INFLUX_WRITER_BATCH_TIMEOUT}
+      MF_INFLUXDB_HOST: ${MF_INFLUXDB_HOST}
+      MF_INFLUXDB_PORT: ${MF_INFLUXDB_PORT}
+      MF_INFLUXDB_ADMIN_USER: ${MF_INFLUXDB_ADMIN_USER}
+      MF_INFLUXDB_ADMIN_PASSWORD: ${MF_INFLUXDB_ADMIN_PASSWORD}
+    ports:
+      - ${MF_INFLUX_WRITER_PORT}:${MF_INFLUX_WRITER_PORT}
+    networks:
+      - docker_mainfluxlabs-base-net
+  influxdb-reader:
+    image: mainfluxlabs/influxdb-reader:${MF_RELEASE_TAG}
+    container_name: mainfluxlabs-influxdb-reader
+    restart: on-failure
+    environment:
+      MF_INFLUX_READER_LOG_LEVEL: debug
+      MF_INFLUX_READER_PORT: ${MF_INFLUX_READER_PORT}
+      MF_INFLUXDB_HOST: ${MF_INFLUXDB_HOST}
+      MF_INFLUXDB_PORT: ${MF_INFLUXDB_PORT}
+      MF_INFLUXDB_ADMIN_USER: ${MF_INFLUXDB_ADMIN_USER}
+      MF_INFLUXDB_ADMIN_PASSWORD: ${MF_INFLUXDB_ADMIN_PASSWORD}
+      MF_INFLUX_READER_SERVER_CERT: ${MF_INFLUX_READER_SERVER_CERT}
+      MF_INFLUX_READER_SERVER_KEY: ${MF_INFLUX_READER_SERVER_KEY}
+      MF_JAEGER_URL: ${MF_JAEGER_URL}
+      MF_THINGS_AUTH_GRPC_URL: ${MF_THINGS_AUTH_GRPC_URL}
+      MF_THINGS_AUTH_GRPC_TIMEOUT: ${MF_THINGS_AUTH_GRPC_TIMEOUT}
+      MF_AUTH_GRPC_URL: ${MF_AUTH_GRPC_URL}
+      MF_AUTH_GRPC_TIMEOUT : ${MF_AUTH_GRPC_TIMEOUT}
+    ports:
+      - ${MF_INFLUX_READER_PORT}:${MF_INFLUX_READER_PORT}
+    networks:
+      - docker_mainfluxlabs-base-net
+    volumes:
+      - ../../ssl/certs:/etc/ssl/certs
 
   smtp-notifier:
     image: mainfluxlabs/smtp-notifier:${MF_RELEASE_TAG}
